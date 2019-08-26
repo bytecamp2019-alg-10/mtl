@@ -1,0 +1,13 @@
+Datas/
+!Datas/*.py
+References/
+__pycache__/
+*.md
+LICENSE
+*.html
+YellowFin/
+example/
+*/.idea/
+Models/ffm-windows/
+.idea/
+.DS_Store
