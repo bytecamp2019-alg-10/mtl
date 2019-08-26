@@ -5,7 +5,6 @@ __pycache__/
 *.md
 LICENSE
 *.html
-YellowFin/
 example/
 */.idea/
 Models/ffm-windows/
