@@ -1,5 +1,5 @@
-Datas/
 !Datas/*.py
+Datas/
 References/
 __pycache__/
 *.md
