@@ -18,14 +18,14 @@ dense_features = ['generate_time', 'date', 'duration']
 # using_features = ['uid', 'author_id', 'u_region_id', 'g_region_id', 'item_id', 'music_id', 'generate_time', 'date', 'duration']
 targets = ['finish', 'like']
 
-def model_generate(method, train_X, train_y, val_X, val_y, linear_feature_columns, dnn_feature_columns):
-    model =  method(linear_feature_columns, dnn_feature_columns, embedding_size=32)
+def model_generate(train_X, train_y, val_X, val_y, linear_feature_columns, dnn_feature_columns):
+    model = DeepFM(linear_feature_columns, dnn_feature_columns, embedding_size=32)
     model.compile("adam", "binary_crossentropy", metrics=[roc_auc_score_pyfunc, log_loss_pyfunc])
     history = model.fit(train_X, train_y, validation_data=(val_X, val_y), batch_size=4096, epochs=5,
                         callbacks=[EarlyStopping()])
     return model, history
 
-def main(method):
+def main():
 
     Use_SF = False
     if len(sys.argv) > 0 and sys.argv[0] == 'SF':
@@ -33,9 +33,21 @@ def main(method):
 
     train, vali, test = GetFeatures(Use_SF)
 
-    fixlen_feature_columns = [SparseFeat(feat, train[feat].nunique() + 1, use_hash=True, dtype=int)
-                              for feat in sparse_features] + \
-                             [DenseFeat(feat, 1,) for feat in dense_features]
+    feature_count = []
+    for feat in sparse_features:
+        print("Fitting {}".format(feat))
+        labels = {}
+        for x in train[feat]:
+            if x not in labels:
+                labels[x] = len(labels) + 1
+        print("Transforming {}".format(feat))
+        for df in [train, vali, test]:
+            df[feat] = df[feat].map(lambda x: labels.get(x, 0))
+        feature_count.append(len(labels) + 1)
+
+    sparse_feature_columns = [SparseFeat(f, f_c) for f, f_c in zip(sparse_features, feature_count)]
+    dense_feature_columns = [DenseFeat(f, 1) for f in dense_features]
+    fixlen_feature_columns = sparse_feature_columns + dense_feature_columns
     dnn_feature_columns = fixlen_feature_columns
     linear_feature_columns = fixlen_feature_columns
 
@@ -46,7 +58,7 @@ def main(method):
     test_model_input = [test[name] for name in fixlen_feature_names]
 
     def eval(target):
-        model, history = model_generate(method, train_model_input, train[[target]], vali_model_input, vali[[target]],
+        model, history = model_generate(train_model_input, train[[target]], vali_model_input, vali[[target]],
                                         linear_feature_columns, dnn_feature_columns)
         pred_ans = model.predict(test_model_input, batch_size=256)
         print(target + " test LogLoss", round(log_loss(test[target].values, pred_ans), 4))
@@ -56,4 +68,4 @@ def main(method):
         eval(target)
 
 if __name__ == "__main__":
-    main(DeepFM)
+    main()
